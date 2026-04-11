@@ -820,6 +820,43 @@ type GdprEraseData struct {
 	Message      string `json:"message"`
 }
 
+// ---- Link Click Stats ----
+
+// LinkClickStat holds per-link click statistics for a sent email.
+type LinkClickStat struct {
+	URL          string `json:"url"`
+	Clicks       int64  `json:"clicks"`
+	UniqueClicks int64  `json:"unique_clicks"`
+}
+
+// ---- Insights ----
+
+// InsightFinding is a single finding produced by the AI insights engine.
+type InsightFinding struct {
+	// Severity is "info", "warn", or "critical".
+	Severity string `json:"severity"`
+	// Area is "deliverability", "reputation", "performance", or "security".
+	Area           string `json:"area"`
+	Observation    string `json:"observation"`
+	Recommendation string `json:"recommendation"`
+}
+
+// InsightReport is an AI-generated operational insights report for an account.
+type InsightReport struct {
+	ID           string           `json:"id"`
+	AccountID    *string          `json:"account_id"`
+	GeneratedAt  string           `json:"generated_at"`
+	PeriodStart  string           `json:"period_start"`
+	PeriodEnd    string           `json:"period_end"`
+	Model        string           `json:"model"`
+	InputTokens  *int64           `json:"input_tokens"`
+	OutputTokens *int64           `json:"output_tokens"`
+	Summary      string           `json:"summary"`
+	Findings     []InsightFinding `json:"findings"`
+	RawMarkdown  *string          `json:"raw_markdown"`
+	Acknowledged *string          `json:"acknowledged_at"`
+}
+
 // ---- Tracking Domain ----
 
 // TrackingDomainResponse is returned when setting a tracking domain.

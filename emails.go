@@ -51,6 +51,15 @@ func (c *Client) SendBroadcast(ctx context.Context, params BroadcastParams) (*Br
 	return &wrapper.Data, nil
 }
 
+// GetEmailLinks returns per-link click statistics for a sent email.
+func (c *Client) GetEmailLinks(ctx context.Context, emailID string) ([]LinkClickStat, error) {
+	wrapper, err := doJSON[dataResponse[[]LinkClickStat]](c, ctx, http.MethodGet, "/v1/emails/"+url.PathEscape(emailID)+"/links", nil)
+	if err != nil {
+		return nil, err
+	}
+	return wrapper.Data, nil
+}
+
 // ListEmails returns a paginated list of emails.
 func (c *Client) ListEmails(ctx context.Context, params *ListEmailsParams) ([]Email, *Pagination, error) {
 	q := url.Values{}
