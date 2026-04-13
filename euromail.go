@@ -61,6 +61,16 @@ func WithHTTPClient(httpClient *http.Client) Option {
 	}
 }
 
+// NewClientFromEnv creates a new EuroMail API client using the EUROMAIL_API_KEY
+// environment variable. It returns an error if the variable is not set or empty.
+func NewClientFromEnv(opts ...Option) (*Client, error) {
+	apiKey := os.Getenv("EUROMAIL_API_KEY")
+	if apiKey == "" {
+		return nil, fmt.Errorf("euromail: EUROMAIL_API_KEY environment variable is not set")
+	}
+	return NewClient(apiKey, opts...), nil
+}
+
 // NewClient creates a new EuroMail API client.
 func NewClient(apiKey string, opts ...Option) *Client {
 	c := &Client{
