@@ -187,25 +187,25 @@ type DnsRecord struct {
 
 // Domain represents a sending domain.
 type Domain struct {
-	ID                       string                `json:"id"`
-	AccountID                string                `json:"account_id"`
-	Domain                   string                `json:"domain"`
-	DKIMSelector             string                `json:"dkim_selector"`
-	DKIMPublicKey            string                `json:"dkim_public_key"`
-	SPFVerified              bool                  `json:"spf_verified"`
-	DKIMVerified             bool                  `json:"dkim_verified"`
-	DMARCVerified            bool                  `json:"dmarc_verified"`
-	ReturnPathVerified       bool                  `json:"return_path_verified"`
-	MXVerified               bool                  `json:"mx_verified"`
-	InboundEnabled           bool                  `json:"inbound_enabled"`
-	MXVerifiedAt             *string               `json:"mx_verified_at"`
-	DnsRecords               map[string]DnsRecord  `json:"dns_records"`
-	VerifiedAt               *string               `json:"verified_at"`
-	TrackingDomain           *string               `json:"tracking_domain"`
-	TrackingDomainVerified   bool                  `json:"tracking_domain_verified"`
-	TrackingDomainVerifiedAt *string               `json:"tracking_domain_verified_at"`
-	CreatedAt                string                `json:"created_at"`
-	UpdatedAt                string                `json:"updated_at"`
+	ID                       string               `json:"id"`
+	AccountID                string               `json:"account_id"`
+	Domain                   string               `json:"domain"`
+	DKIMSelector             string               `json:"dkim_selector"`
+	DKIMPublicKey            string               `json:"dkim_public_key"`
+	SPFVerified              bool                 `json:"spf_verified"`
+	DKIMVerified             bool                 `json:"dkim_verified"`
+	DMARCVerified            bool                 `json:"dmarc_verified"`
+	ReturnPathVerified       bool                 `json:"return_path_verified"`
+	MXVerified               bool                 `json:"mx_verified"`
+	InboundEnabled           bool                 `json:"inbound_enabled"`
+	MXVerifiedAt             *string              `json:"mx_verified_at"`
+	DnsRecords               map[string]DnsRecord `json:"dns_records"`
+	VerifiedAt               *string              `json:"verified_at"`
+	TrackingDomain           *string              `json:"tracking_domain"`
+	TrackingDomainVerified   bool                 `json:"tracking_domain_verified"`
+	TrackingDomainVerifiedAt *string              `json:"tracking_domain_verified_at"`
+	CreatedAt                string               `json:"created_at"`
+	UpdatedAt                string               `json:"updated_at"`
 }
 
 // VerificationCheck holds the result of a single DNS verification check.
@@ -216,8 +216,8 @@ type VerificationCheck struct {
 
 // DomainVerificationResult holds the result of a domain verification, including the updated domain and individual checks.
 type DomainVerificationResult struct {
-	Domain Domain                        `json:"domain"`
-	Checks map[string]VerificationCheck  `json:"checks"`
+	Domain Domain                       `json:"domain"`
+	Checks map[string]VerificationCheck `json:"checks"`
 }
 
 // ---- Template ----
@@ -855,6 +855,63 @@ type InsightReport struct {
 	Findings     []InsightFinding `json:"findings"`
 	RawMarkdown  *string          `json:"raw_markdown"`
 	Acknowledged *string          `json:"acknowledged_at"`
+}
+
+// ---- Agent Mailbox ----
+
+// AgentMailbox represents a persistent agent inbox address.
+type AgentMailbox struct {
+	ID          string  `json:"id"`
+	AccountID   string  `json:"account_id"`
+	LocalPart   string  `json:"local_part"`
+	Domain      string  `json:"domain"`
+	Address     string  `json:"address"`
+	DisplayName *string `json:"display_name"`
+	CreatedAt   string  `json:"created_at"`
+}
+
+// MailboxMessage represents a single message stored in an agent mailbox.
+type MailboxMessage struct {
+	ID         string   `json:"id"`
+	MailboxID  string   `json:"mailbox_id"`
+	AccountID  string   `json:"account_id"`
+	MessageID  *string  `json:"message_id"`
+	MailFrom   string   `json:"mail_from"`
+	FromHeader *string  `json:"from_header"`
+	ReplyTo    *string  `json:"reply_to"`
+	Subject    *string  `json:"subject"`
+	TextBody   *string  `json:"text_body"`
+	HTMLBody   *string  `json:"html_body"`
+	SizeBytes  int      `json:"size_bytes"`
+	ThreadID   *string  `json:"thread_id"`
+	Labels     []string `json:"labels"`
+	ReadAt     *string  `json:"read_at"`
+	CreatedAt  string   `json:"created_at"`
+}
+
+// LeasedMessage is a mailbox message returned by the long-poll endpoint with
+// an associated lease token. The message will be redelivered when the lease
+// expires unless acknowledged via AckMessage.
+type LeasedMessage struct {
+	Data           MailboxMessage `json:"data"`
+	LeaseToken     string         `json:"lease_token"`
+	LeaseExpiresAt string         `json:"lease_expires_at"`
+}
+
+// CreateMailboxParams are the parameters for creating an agent mailbox. All
+// fields are optional: when LocalPart is empty the server generates a random
+// address; when DomainID is empty the account's default inbound domain is used.
+type CreateMailboxParams struct {
+	DisplayName *string `json:"display_name,omitempty"`
+	LocalPart   *string `json:"local_part,omitempty"`
+	DomainID    *string `json:"domain_id,omitempty"`
+}
+
+// ListMailboxMessagesParams are query parameters for listing mailbox messages.
+type ListMailboxMessagesParams struct {
+	Status *string `json:"status,omitempty"`
+	Limit  *int    `json:"limit,omitempty"`
+	Offset *int    `json:"offset,omitempty"`
 }
 
 // ---- Tracking Domain ----
