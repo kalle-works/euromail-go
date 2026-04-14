@@ -333,85 +333,42 @@ if euromail.IsRateLimitError(err) {
 
 ## Agent Mailboxes
 
-Agent mailboxes provide persistent email addresses for AI agents with at-least-once message delivery via a lease/ack/nack model. Native SDK support is coming in a future release. In the meantime, use `net/http` directly:
+Agent mailboxes provide persistent email addresses for AI agents with at-least-once message delivery via a lease/ack/nack model.
 
 ```go
-package main
-
-import (
-    "bytes"
-    "encoding/json"
-    "net/http"
-    "os"
-)
-
-const api = "https://api.euromail.dev"
-
-func do(method, path string, body any) (*http.Response, error) {
-    var buf bytes.Buffer
-    if body != nil {
-        if err := json.NewEncoder(&buf).Encode(body); err != nil {
-            return nil, err
-        }
-    }
-    req, err := http.NewRequest(method, api+path, &buf)
-    if err != nil {
-        return nil, err
-    }
-    req.Header.Set("X-EuroMail-Api-Key", os.Getenv("EUROMAIL_API_KEY"))
-    req.Header.Set("Content-Type", "application/json")
-    return http.DefaultClient.Do(req)
+// Create a mailbox (server picks a random local-part on the default inbound domain)
+mb, err := client.CreateMailbox(ctx, euromail.CreateMailboxParams{
+    DisplayName: euromail.String("Support Agent"),
+})
+if err != nil {
+    return err
 }
+fmt.Printf("Agent address: %s\n", mb.Address)
 
-func run() error {
-    // Create a mailbox
-    resp, err := do("POST", "/v1/agent-mailboxes",
-        map[string]string{"display_name": "Support Agent"})
+for {
+    // Long-poll for the next message (acquires a 5-minute lease on success).
+    // When the timeout elapses with no message available the call returns
+    // (nil, nil) — just keep looping.
+    leased, err := client.WaitForNextMessage(ctx, mb.ID, euromail.Int(30))
     if err != nil {
         return err
     }
-    var created struct {
-        Data struct{ ID string } `json:"data"`
+    if leased == nil {
+        continue
     }
-    json.NewDecoder(resp.Body).Decode(&created)
-    resp.Body.Close()
 
-    for {
-        // Long-poll for the next message (acquires a 5-minute lease)
-        resp, err := do("GET",
-            "/v1/agent-mailboxes/"+created.Data.ID+"/messages/next?timeout=30",
-            nil)
-        if err != nil {
-            return err
-        }
-        if resp.StatusCode == http.StatusRequestTimeout {
-            resp.Body.Close()
-            continue
-        }
-        var body struct {
-            Data       struct{ ID string } `json:"data"`
-            LeaseToken string              `json:"lease_token"`
-        }
-        json.NewDecoder(resp.Body).Decode(&body)
-        resp.Body.Close()
-
-        if err := handle(body.Data); err != nil {
-            // Nack to return the message to the queue for retry
-            r, _ := do("POST",
-                "/v1/agent-mailboxes/"+created.Data.ID+"/messages/"+body.Data.ID+"/nack",
-                map[string]string{"lease_token": body.LeaseToken})
-            r.Body.Close()
-            continue
-        }
-
-        // Ack when done — message will not be redelivered
-        r, _ := do("POST",
-            "/v1/agent-mailboxes/"+created.Data.ID+"/messages/"+body.Data.ID+"/ack",
-            map[string]string{"lease_token": body.LeaseToken})
-        r.Body.Close()
+    if err := handle(leased.Data); err != nil {
+        // Nack to return the message to the queue for retry
+        _ = client.NackMessage(ctx, mb.ID, leased.Data.ID, leased.LeaseToken)
+        continue
     }
+
+    // Ack when done — message will not be redelivered
+    _ = client.AckMessage(ctx, mb.ID, leased.Data.ID, leased.LeaseToken)
 }
 ```
+
+Additional helpers: `ListMailboxes`, `GetMailbox`, `DeleteMailbox`, `ListMailboxMessages`, `DeleteMailboxMessage`.
 
 See the [Agent Mailboxes guide](https://euromail.dev/docs/guides/agent-mailboxes/) for the full flow, duplicate handling, and horizontal scaling patterns.
 
@@ -469,6 +426,15 @@ See the [Agent Mailboxes guide](https://euromail.dev/docs/guides/agent-mailboxes
 | **Dead Letters** | `ListDeadLetters(ctx, params)` | List permanently failed emails |
 | | `RetryDeadLetter(ctx, id)` | Retry delivery |
 | | `DeleteDeadLetter(ctx, id)` | Remove from dead letter queue |
+| **Agent Mailboxes** | `CreateMailbox(ctx, params)` | Create a persistent agent inbox |
+| | `ListMailboxes(ctx, params)` | List all mailboxes |
+| | `GetMailbox(ctx, id)` | Get a mailbox by ID |
+| | `DeleteMailbox(ctx, id)` | Delete a mailbox and all messages |
+| | `ListMailboxMessages(ctx, id, params)` | List messages in a mailbox |
+| | `WaitForNextMessage(ctx, id, timeout)` | Long-poll for the next message (lease) |
+| | `AckMessage(ctx, id, msgId, token)` | Acknowledge a processed message |
+| | `NackMessage(ctx, id, msgId, token)` | Return a message to the queue |
+| | `DeleteMailboxMessage(ctx, id, msgId)` | Delete a message |
 | **Account** | `GetAccount(ctx)` | Get account info and quota |
 | | `ExportAccount(ctx)` | Export all account data |
 | | `DeleteAccount(ctx)` | Permanently delete account |

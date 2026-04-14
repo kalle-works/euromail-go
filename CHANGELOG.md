@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Native agent mailbox support: `CreateMailbox`, `ListMailboxes`, `GetMailbox`,
+  `DeleteMailbox`, `ListMailboxMessages`, `DeleteMailboxMessage`.
+- Long-poll lease/ack/nack methods: `WaitForNextMessage`, `AckMessage`,
+  `NackMessage`. `WaitForNextMessage` returns `(nil, nil)` on HTTP 408 so
+  polling loops can simply continue on timeout.
+- Types: `AgentMailbox`, `MailboxMessage`, `LeasedMessage`,
+  `CreateMailboxParams`, `ListMailboxMessagesParams`.
+- README rewritten with native SDK examples in place of the raw `net/http`
+  snippet.
+
 ## [0.1.0] - 2026-04-13
 
 ### Added

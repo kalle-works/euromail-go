@@ -306,6 +306,33 @@ func main() {
 		fmt.Printf("GDPR export: %v\n", err)
 	}
 
+	// ---- Agent Mailboxes ----
+	mailboxes, _, err := client.ListMailboxes(ctx, &euromail.ListParams{Page: euromail.Int(1), PerPage: euromail.Int(5)})
+	must(err)
+	fmt.Printf("Agent mailboxes: %d\n", len(mailboxes))
+
+	mb, err := client.CreateMailbox(ctx, euromail.CreateMailboxParams{
+		DisplayName: euromail.String("Example Agent"),
+	})
+	if err != nil {
+		fmt.Printf("CreateMailbox skipped: %v\n", err)
+	} else {
+		fmt.Printf("Created mailbox: %s\n", mb.Address)
+
+		// Short long-poll — returns nil on timeout.
+		leased, err := client.WaitForNextMessage(ctx, mb.ID, euromail.Int(1))
+		must(err)
+		if leased == nil {
+			fmt.Println("No messages waiting (408 timeout — expected for a fresh mailbox)")
+		} else {
+			fmt.Printf("Got message %s, acking\n", leased.Data.ID)
+			must(client.AckMessage(ctx, mb.ID, leased.Data.ID, leased.LeaseToken))
+		}
+
+		must(client.DeleteMailbox(ctx, mb.ID))
+		fmt.Println("Mailbox deleted")
+	}
+
 	fmt.Println("\nAll methods exercised successfully!")
 }
 
