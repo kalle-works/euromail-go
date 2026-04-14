@@ -331,6 +331,90 @@ if euromail.IsRateLimitError(err) {
 | `NotFoundError` | 404 | Resource does not exist |
 | `EuroMailError` | 4xx/5xx | Base type for all API errors |
 
+## Agent Mailboxes
+
+Agent mailboxes provide persistent email addresses for AI agents with at-least-once message delivery via a lease/ack/nack model. Native SDK support is coming in a future release. In the meantime, use `net/http` directly:
+
+```go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "net/http"
+    "os"
+)
+
+const api = "https://api.euromail.dev"
+
+func do(method, path string, body any) (*http.Response, error) {
+    var buf bytes.Buffer
+    if body != nil {
+        if err := json.NewEncoder(&buf).Encode(body); err != nil {
+            return nil, err
+        }
+    }
+    req, err := http.NewRequest(method, api+path, &buf)
+    if err != nil {
+        return nil, err
+    }
+    req.Header.Set("X-EuroMail-Api-Key", os.Getenv("EUROMAIL_API_KEY"))
+    req.Header.Set("Content-Type", "application/json")
+    return http.DefaultClient.Do(req)
+}
+
+func run() error {
+    // Create a mailbox
+    resp, err := do("POST", "/v1/agent-mailboxes",
+        map[string]string{"display_name": "Support Agent"})
+    if err != nil {
+        return err
+    }
+    var created struct {
+        Data struct{ ID string } `json:"data"`
+    }
+    json.NewDecoder(resp.Body).Decode(&created)
+    resp.Body.Close()
+
+    for {
+        // Long-poll for the next message (acquires a 5-minute lease)
+        resp, err := do("GET",
+            "/v1/agent-mailboxes/"+created.Data.ID+"/messages/next?timeout=30",
+            nil)
+        if err != nil {
+            return err
+        }
+        if resp.StatusCode == http.StatusRequestTimeout {
+            resp.Body.Close()
+            continue
+        }
+        var body struct {
+            Data       struct{ ID string } `json:"data"`
+            LeaseToken string              `json:"lease_token"`
+        }
+        json.NewDecoder(resp.Body).Decode(&body)
+        resp.Body.Close()
+
+        if err := handle(body.Data); err != nil {
+            // Nack to return the message to the queue for retry
+            r, _ := do("POST",
+                "/v1/agent-mailboxes/"+created.Data.ID+"/messages/"+body.Data.ID+"/nack",
+                map[string]string{"lease_token": body.LeaseToken})
+            r.Body.Close()
+            continue
+        }
+
+        // Ack when done — message will not be redelivered
+        r, _ := do("POST",
+            "/v1/agent-mailboxes/"+created.Data.ID+"/messages/"+body.Data.ID+"/ack",
+            map[string]string{"lease_token": body.LeaseToken})
+        r.Body.Close()
+    }
+}
+```
+
+See the [Agent Mailboxes guide](https://euromail.dev/docs/guides/agent-mailboxes/) for the full flow, duplicate handling, and horizontal scaling patterns.
+
 ## API Reference
 
 | Category | Method | Description |
