@@ -1,0 +1,26 @@
+{
+  "projectTitle": "EuroMail Go SDK",
+  "description": "Official Go SDK for EuroMail — GDPR-compliant transactional email API with EU data residency. Send emails, manage domains, templates, webhooks, contact lists, signup forms, newsletters, inbound email, and AI agent mailboxes.",
+  "folders": [
+    ".",
+    "examples"
+  ],
+  "excludeFolders": [
+    ".git"
+  ],
+  "excludeFiles": [
+    "go.sum"
+  ],
+  "rules": [
+    "Install with: go get github.com/kalle-works/euromail-go",
+    "Import: euromail \"github.com/kalle-works/euromail-go\"",
+    "Initialize: client := euromail.NewClient(os.Getenv(\"EUROMAIL_API_KEY\"))",
+    "All methods take context.Context as first argument",
+    "Use euromail.String(\"value\") helper for optional string pointer fields",
+    "SendEmail() returns SendEmailResponse with .ID and .Status where status is 'queued'",
+    "Use TemplateAlias field (not TemplateID) when sending with a template",
+    "DnsRecords is map[string]DnsRecord keyed by purpose (dkim, return_path) with .Host field",
+    "The From field must use the apex domain, not the sending subdomain (em.yourdomain.com)",
+    "Agent mailbox: GetNextMailboxMessage() → process → AckMailboxMessage() with LeaseToken"
+  ]
+}
