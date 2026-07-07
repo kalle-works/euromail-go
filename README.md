@@ -370,6 +370,34 @@ for {
 
 Additional helpers: `ListMailboxes`, `GetMailbox`, `DeleteMailbox`, `ListMailboxMessages`, `DeleteMailboxMessage`.
 
+Threading, search, and organization:
+
+```go
+// Reply to a received message (threaded onto the original conversation)
+reply, err := client.ReplyToMessage(ctx, mb.ID, msg.ID, euromail.ReplyToMessageParams{
+    TextBody: euromail.String("Thanks, we're on it!"),
+})
+
+// Walk conversation threads
+threads, _, err := client.ListMailboxThreads(ctx, mb.ID, nil)
+conversation, _, err := client.GetMailboxThread(ctx, mb.ID, *msg.ThreadID, nil)
+
+// Full-text search
+hits, _, err := client.SearchMailboxMessages(ctx, mb.ID, "invoice overdue", nil)
+
+// Labels (full replace) and pre-signed attachment download URLs
+labels, err := client.UpdateMessageLabels(ctx, mb.ID, msg.ID, []string{"vip", "billing"})
+atts, err := client.GetMessageAttachmentURLs(ctx, mb.ID, msg.ID)
+
+// Contacts, analytics, and auto-responder config
+contacts, _, err := client.ListMailboxContacts(ctx, mb.ID, nil)
+stats, err := client.GetMailboxAnalytics(ctx, mb.ID)
+cfg, err := client.UpdateAutoResponder(ctx, mb.ID, euromail.UpdateAutoResponderParams{
+    Enabled: euromail.Bool(true),
+    Rules:   json.RawMessage(`[{"match":"all","action":{"reply_text":"Away until Monday."}}]`),
+})
+```
+
 See the [Agent Mailboxes guide](https://euromail.dev/docs/guides/agent-mailboxes/) for the full flow, duplicate handling, and horizontal scaling patterns.
 
 ## API Reference
@@ -435,6 +463,15 @@ See the [Agent Mailboxes guide](https://euromail.dev/docs/guides/agent-mailboxes
 | | `AckMessage(ctx, id, msgId, token)` | Acknowledge a processed message |
 | | `NackMessage(ctx, id, msgId, token)` | Return a message to the queue |
 | | `DeleteMailboxMessage(ctx, id, msgId)` | Delete a message |
+| | `ReplyToMessage(ctx, id, msgId, params)` | Reply, threaded onto the conversation |
+| | `ListMailboxThreads(ctx, id, params)` | List conversation threads (latest per thread) |
+| | `GetMailboxThread(ctx, id, threadId, params)` | Get all messages in a thread |
+| | `SearchMailboxMessages(ctx, id, query, params)` | Full-text search messages |
+| | `UpdateMessageLabels(ctx, id, msgId, labels)` | Replace a message's labels |
+| | `GetMessageAttachmentURLs(ctx, id, msgId)` | Get pre-signed attachment download URLs |
+| | `ListMailboxContacts(ctx, id, params)` | List correspondents |
+| | `GetMailboxAnalytics(ctx, id)` | Aggregate message counts |
+| | `UpdateAutoResponder(ctx, id, params)` | Configure the auto-responder |
 | **Account** | `GetAccount(ctx)` | Get account info and quota |
 | | `ExportAccount(ctx)` | Export all account data |
 | | `DeleteAccount(ctx)` | Permanently delete account |

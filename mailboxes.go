@@ -53,6 +53,29 @@ func (c *Client) ListMailboxes(ctx context.Context, params *ListParams) ([]Agent
 	return result.Data, &result.Pagination, nil
 }
 
+// mailboxListQuery maps ListParams.Page/PerPage to the limit/offset query
+// parameters used by the mailbox list endpoints, mirroring ListMailboxes
+// (limit = per_page, offset = (page-1)*per_page).
+func mailboxListQuery(params *ListParams) url.Values {
+	q := url.Values{}
+	if params == nil {
+		return q
+	}
+	perPage := 0
+	if params.PerPage != nil {
+		perPage = *params.PerPage
+		q.Set("limit", intToStr(perPage))
+	}
+	if params.Page != nil && *params.Page > 0 {
+		offset := 0
+		if perPage > 0 {
+			offset = (*params.Page - 1) * perPage
+		}
+		q.Set("offset", intToStr(offset))
+	}
+	return q
+}
+
 // GetMailbox retrieves a single agent mailbox by ID.
 func (c *Client) GetMailbox(ctx context.Context, id string) (*AgentMailbox, error) {
 	wrapper, err := doJSON[dataResponse[AgentMailbox]](c, ctx, http.MethodGet, "/v1/agent-mailboxes/"+url.PathEscape(id), nil)
@@ -180,4 +203,147 @@ func (c *Client) NackMessage(ctx context.Context, mailboxID, messageID, leaseTok
 		body,
 	)
 	return err
+}
+
+// ReplyToMessage sends a reply to a received message, threaded onto the original
+// conversation. At least one of params.TextBody or params.HTMLBody must be set;
+// the server returns 400 if both are absent.
+func (c *Client) ReplyToMessage(ctx context.Context, mailboxID, messageID string, params ReplyToMessageParams) (*MailboxReplyResult, error) {
+	wrapper, err := doJSON[dataResponse[MailboxReplyResult]](c, ctx,
+		http.MethodPost,
+		"/v1/agent-mailboxes/"+url.PathEscape(mailboxID)+"/messages/"+url.PathEscape(messageID)+"/reply",
+		params,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &wrapper.Data, nil
+}
+
+// ListMailboxThreads returns the latest message of each conversation thread in a
+// mailbox. ListParams.Page and ListParams.PerPage are mapped to the API's
+// limit/offset query parameters.
+func (c *Client) ListMailboxThreads(ctx context.Context, mailboxID string, params *ListParams) ([]MailboxMessage, *Pagination, error) {
+	q := mailboxListQuery(params)
+	path := "/v1/agent-mailboxes/" + url.PathEscape(mailboxID) + "/threads"
+	if len(q) > 0 {
+		path += "?" + q.Encode()
+	}
+
+	result, err := doJSON[paginatedResponse[MailboxMessage]](c, ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return result.Data, &result.Pagination, nil
+}
+
+// GetMailboxThread returns every message in a single conversation thread, ordered
+// chronologically ascending. ListParams.Page and ListParams.PerPage are mapped to
+// the API's limit/offset query parameters.
+func (c *Client) GetMailboxThread(ctx context.Context, mailboxID, threadID string, params *ListParams) ([]MailboxMessage, *Pagination, error) {
+	q := mailboxListQuery(params)
+	path := "/v1/agent-mailboxes/" + url.PathEscape(mailboxID) + "/threads/" + url.PathEscape(threadID)
+	if len(q) > 0 {
+		path += "?" + q.Encode()
+	}
+
+	result, err := doJSON[paginatedResponse[MailboxMessage]](c, ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return result.Data, &result.Pagination, nil
+}
+
+// SearchMailboxMessages performs a full-text search over the messages in a
+// mailbox. query is required (1-500 characters); the server returns 400 for an
+// empty or over-long query. ListParams.Page and ListParams.PerPage are mapped to
+// the API's limit/offset query parameters.
+func (c *Client) SearchMailboxMessages(ctx context.Context, mailboxID, query string, params *ListParams) ([]MailboxMessage, *Pagination, error) {
+	q := mailboxListQuery(params)
+	q.Set("q", query)
+	path := "/v1/agent-mailboxes/" + url.PathEscape(mailboxID) + "/messages/search?" + q.Encode()
+
+	result, err := doJSON[paginatedResponse[MailboxMessage]](c, ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return result.Data, &result.Pagination, nil
+}
+
+// UpdateMessageLabels replaces the labels on a message with the provided set
+// (this is a full replace, not a merge). Each label must be 1-64 characters of
+// alphanumerics, dashes, or underscores, and at most 50 labels are allowed. It
+// returns the stored labels.
+func (c *Client) UpdateMessageLabels(ctx context.Context, mailboxID, messageID string, labels []string) ([]string, error) {
+	body := map[string][]string{"labels": labels}
+	wrapper, err := doJSON[dataResponse[struct {
+		Labels []string `json:"labels"`
+	}]](c, ctx,
+		http.MethodPut,
+		"/v1/agent-mailboxes/"+url.PathEscape(mailboxID)+"/messages/"+url.PathEscape(messageID)+"/labels",
+		body,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return wrapper.Data.Labels, nil
+}
+
+// GetMessageAttachmentURLs returns the attachments of a message. When the
+// attachment bytes were persisted, each entry carries a pre-signed download URL
+// (see MailboxAttachmentURL for the fallback behavior when they were not).
+func (c *Client) GetMessageAttachmentURLs(ctx context.Context, mailboxID, messageID string) ([]MailboxAttachmentURL, error) {
+	wrapper, err := doJSON[dataResponse[[]MailboxAttachmentURL]](c, ctx,
+		http.MethodGet,
+		"/v1/agent-mailboxes/"+url.PathEscape(mailboxID)+"/messages/"+url.PathEscape(messageID)+"/attachments",
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return wrapper.Data, nil
+}
+
+// ListMailboxContacts returns the distinct correspondents that have sent mail to
+// a mailbox. ListParams.Page and ListParams.PerPage are mapped to the API's
+// limit/offset query parameters.
+func (c *Client) ListMailboxContacts(ctx context.Context, mailboxID string, params *ListParams) ([]MailboxContact, *Pagination, error) {
+	q := mailboxListQuery(params)
+	path := "/v1/agent-mailboxes/" + url.PathEscape(mailboxID) + "/contacts"
+	if len(q) > 0 {
+		path += "?" + q.Encode()
+	}
+
+	result, err := doJSON[paginatedResponse[MailboxContact]](c, ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return result.Data, &result.Pagination, nil
+}
+
+// GetMailboxAnalytics returns aggregate message counts for a mailbox.
+func (c *Client) GetMailboxAnalytics(ctx context.Context, mailboxID string) (*MailboxAnalytics, error) {
+	wrapper, err := doJSON[dataResponse[MailboxAnalytics]](c, ctx,
+		http.MethodGet,
+		"/v1/agent-mailboxes/"+url.PathEscape(mailboxID)+"/analytics",
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &wrapper.Data, nil
+}
+
+// UpdateAutoResponder configures the mailbox auto-responder. Fields left nil in
+// params are unchanged. It returns the resulting auto-responder configuration.
+func (c *Client) UpdateAutoResponder(ctx context.Context, mailboxID string, params UpdateAutoResponderParams) (*AutoResponderConfig, error) {
+	wrapper, err := doJSON[dataResponse[AutoResponderConfig]](c, ctx,
+		http.MethodPatch,
+		"/v1/agent-mailboxes/"+url.PathEscape(mailboxID)+"/auto-responder",
+		params,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &wrapper.Data, nil
 }

@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   polling loops can simply continue on timeout.
 - Types: `AgentMailbox`, `MailboxMessage`, `LeasedMessage`,
   `CreateMailboxParams`, `ListMailboxMessagesParams`.
+- Agent mailbox parity methods: `ReplyToMessage`, `ListMailboxThreads`,
+  `GetMailboxThread`, `SearchMailboxMessages`, `UpdateMessageLabels`,
+  `GetMessageAttachmentURLs`, `ListMailboxContacts`, `GetMailboxAnalytics`,
+  and `UpdateAutoResponder`.
+- Types: `ReplyToMessageParams`, `MailboxReplyResult`, `MailboxAttachmentURL`,
+  `MailboxContact`, `MailboxAnalytics`, `UpdateAutoResponderParams`,
+  `AutoResponderConfig`. `MailboxMessage` gains threading (`InReplyTo`,
+  `ReferencesHeader`), attachment (`AttachmentsStored`, `AttachmentsMetadata`),
+  classification (`Classification`, `ClassificationConfidence`, `ClassifiedAt`),
+  and lease (`LeasedUntil`, `LeaseToken`) fields; `AgentMailbox` gains
+  `WebhookFilters`, `AutoResponderEnabled`, and `AutoResponderRules`.
 - README rewritten with native SDK examples in place of the raw `net/http`
   snippet.
 
