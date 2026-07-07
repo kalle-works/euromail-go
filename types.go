@@ -868,6 +868,14 @@ type AgentMailbox struct {
 	Address     string  `json:"address"`
 	DisplayName *string `json:"display_name"`
 	CreatedAt   string  `json:"created_at"`
+
+	// WebhookFilters is an opaque JSON value (nullable) describing which inbound
+	// events are forwarded to the mailbox webhook.
+	WebhookFilters json.RawMessage `json:"webhook_filters"`
+	// AutoResponderEnabled reports whether the auto-responder is active.
+	AutoResponderEnabled bool `json:"auto_responder_enabled"`
+	// AutoResponderRules is an opaque JSON array of auto-responder rule objects.
+	AutoResponderRules json.RawMessage `json:"auto_responder_rules"`
 }
 
 // MailboxMessage represents a single message stored in an agent mailbox.
@@ -887,6 +895,26 @@ type MailboxMessage struct {
 	Labels     []string `json:"labels"`
 	ReadAt     *string  `json:"read_at"`
 	CreatedAt  string   `json:"created_at"`
+
+	// Threading headers, populated when the message is part of a reply chain.
+	InReplyTo        *string `json:"in_reply_to"`
+	ReferencesHeader *string `json:"references_header"`
+
+	// Attachment state. AttachmentsStored reports whether raw attachment bytes
+	// were persisted to object storage (retrievable via
+	// GetMessageAttachmentURLs). AttachmentsMetadata is an opaque JSON value
+	// (nullable) with per-attachment metadata.
+	AttachmentsStored   bool            `json:"attachments_stored"`
+	AttachmentsMetadata json.RawMessage `json:"attachments_metadata"`
+
+	// Intent classification, populated asynchronously by the server.
+	Classification           *string  `json:"classification"`
+	ClassificationConfidence *float32 `json:"classification_confidence"`
+	ClassifiedAt             *string  `json:"classified_at"`
+
+	// Lease state, present while the message is leased to a consumer.
+	LeasedUntil *string `json:"leased_until"`
+	LeaseToken  *string `json:"lease_token"`
 }
 
 // LeasedMessage is a mailbox message returned by the long-poll endpoint with
@@ -912,6 +940,72 @@ type ListMailboxMessagesParams struct {
 	Status *string `json:"status,omitempty"`
 	Limit  *int    `json:"limit,omitempty"`
 	Offset *int    `json:"offset,omitempty"`
+}
+
+// ReplyToMessageParams are the parameters for replying to a mailbox message.
+// At least one of TextBody or HTMLBody must be set; the server rejects a reply
+// with neither.
+type ReplyToMessageParams struct {
+	TextBody *string `json:"text_body,omitempty"`
+	HTMLBody *string `json:"html_body,omitempty"`
+}
+
+// MailboxReplyResult is returned by ReplyToMessage and describes the reply email
+// that was queued for delivery.
+type MailboxReplyResult struct {
+	ID        string `json:"id"`
+	Status    string `json:"status"`
+	MessageID string `json:"message_id"`
+	To        string `json:"to"`
+	Subject   string `json:"subject"`
+}
+
+// MailboxAttachmentURL describes an attachment on a mailbox message.
+//
+// In the common case the server has persisted the attachment to object storage
+// and every field is populated, with URL holding a pre-signed download link
+// valid for ExpiresInSeconds seconds (typically one hour). If the attachment
+// was never persisted the server falls back to returning the raw stored
+// metadata, in which case URL and ExpiresInSeconds are absent and
+// Filename/ContentType/Size may also be empty or zero.
+type MailboxAttachmentURL struct {
+	Filename         string `json:"filename"`
+	ContentType      string `json:"content_type"`
+	Size             int64  `json:"size"`
+	URL              string `json:"url,omitempty"`
+	ExpiresInSeconds int    `json:"expires_in_seconds,omitempty"`
+}
+
+// MailboxContact is a distinct correspondent that has sent mail to a mailbox.
+type MailboxContact struct {
+	Email        string  `json:"email"`
+	DisplayName  *string `json:"display_name"`
+	MessageCount int64   `json:"message_count"`
+	LastSeen     string  `json:"last_seen"`
+}
+
+// MailboxAnalytics holds aggregate message counts for a mailbox.
+type MailboxAnalytics struct {
+	TotalMessages    int64 `json:"total_messages"`
+	UnreadMessages   int64 `json:"unread_messages"`
+	TotalThreads     int64 `json:"total_threads"`
+	MessagesToday    int64 `json:"messages_today"`
+	MessagesThisWeek int64 `json:"messages_this_week"`
+}
+
+// UpdateAutoResponderParams are the parameters for configuring a mailbox
+// auto-responder. Rules is an opaque JSON array of rule objects, roughly
+// {"match": ..., "action": {"reply_text"?: ..., "reply_html"?: ...}}.
+type UpdateAutoResponderParams struct {
+	Enabled *bool           `json:"enabled,omitempty"`
+	Rules   json.RawMessage `json:"rules,omitempty"`
+}
+
+// AutoResponderConfig is the auto-responder configuration returned after an
+// update. AutoResponderRules is an opaque JSON array of rule objects.
+type AutoResponderConfig struct {
+	AutoResponderEnabled bool            `json:"auto_responder_enabled"`
+	AutoResponderRules   json.RawMessage `json:"auto_responder_rules"`
 }
 
 // ---- Tracking Domain ----
