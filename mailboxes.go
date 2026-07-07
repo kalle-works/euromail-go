@@ -25,22 +25,7 @@ func (c *Client) CreateMailbox(ctx context.Context, params CreateMailboxParams) 
 // ListParams.Page and ListParams.PerPage are mapped to the API's limit/offset
 // query parameters (limit = per_page, offset = (page-1)*per_page).
 func (c *Client) ListMailboxes(ctx context.Context, params *ListParams) ([]AgentMailbox, *Pagination, error) {
-	q := url.Values{}
-	if params != nil {
-		perPage := 0
-		if params.PerPage != nil {
-			perPage = *params.PerPage
-			q.Set("limit", intToStr(perPage))
-		}
-		if params.Page != nil && *params.Page > 0 {
-			offset := 0
-			if perPage > 0 {
-				offset = (*params.Page - 1) * perPage
-			}
-			q.Set("offset", intToStr(offset))
-		}
-	}
-
+	q := mailboxListQuery(params)
 	path := "/v1/agent-mailboxes"
 	if len(q) > 0 {
 		path += "?" + q.Encode()
