@@ -145,6 +145,21 @@ resp, err := client.SendEmail(ctx, euromail.SendEmailParams{
 })
 ```
 
+### Scheduling, tracking, and marketing sends
+
+```go
+resp, err := client.SendEmail(ctx, euromail.SendEmailParams{
+    From:          "news@yourdomain.com",
+    To:            euromail.ToRecipient("user@example.com"),
+    Subject:       euromail.String("This week in your inbox"),
+    HTMLBody:      euromail.String("<p>Latest updates...</p>"),
+    SendAt:        euromail.String("2026-08-01T09:00:00Z"), // schedule delivery
+    Tracking:      euromail.Bool(true),                     // per-email open/click override
+    Transactional: euromail.Bool(false),                     // adds List-Unsubscribe for marketing/newsletter mail
+    Stream:        euromail.String("marketing"),             // isolate reputation from transactional sends
+})
+```
+
 ### Retrieve and list emails
 
 ```go

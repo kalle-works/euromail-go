@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `SendEmailParams`: `SendAt` (schedule delivery), `Tracking` (per-email open/click
+  override), `Transactional` (opt out of the default `List-Unsubscribe`-suppressing
+  behavior for marketing/newsletter sends), and `Stream` (route through a named
+  message stream) — brings `SendEmail`/`SendBatch` up to date with the current
+  `/v1/emails` API.
+- `BroadcastParams`: `Tracking` and `Transactional` overrides for `SendBroadcast`.
 - Native agent mailbox support: `CreateMailbox`, `ListMailboxes`, `GetMailbox`,
   `DeleteMailbox`, `ListMailboxMessages`, `DeleteMailboxMessage`.
 - Long-poll lease/ack/nack methods: `WaitForNextMessage`, `AckMessage`,
