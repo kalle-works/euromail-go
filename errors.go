@@ -12,10 +12,21 @@ import (
 type EuroMailError struct {
 	Status  int    `json:"status"`
 	Code    string `json:"code"`
+	Type    string `json:"type,omitempty"`
 	Message string `json:"message"`
+	// DocsURL points to the relevant documentation page, when the API supplies
+	// one. Empty for infrastructure errors (database/redis/internal) that have
+	// no actionable docs page.
+	DocsURL string `json:"docs_url,omitempty"`
+	// RequestID is the value of the response's X-Request-Id header, when
+	// present. Useful to hand to support when reporting an issue.
+	RequestID string `json:"-"`
 }
 
 func (e *EuroMailError) Error() string {
+	if e.RequestID != "" {
+		return fmt.Sprintf("euromail: %d %s: %s (request_id=%s)", e.Status, e.Code, e.Message, e.RequestID)
+	}
 	return fmt.Sprintf("euromail: %d %s: %s", e.Status, e.Code, e.Message)
 }
 
@@ -24,12 +35,18 @@ type AuthenticationError struct {
 	EuroMailError
 }
 
-// ValidationError indicates a request validation failure (HTTP 422).
+// ValidationError indicates a request validation failure. The API returns
+// this both as HTTP 422 (e.g. AttachmentTooLarge-style semantic failures)
+// and as HTTP 400 (e.g. malformed send_at), always with code
+// "VALIDATION_ERROR" / type "validation_error" — classification below keys
+// off that, not the status code alone.
 type ValidationError struct {
 	EuroMailError
 }
 
-// RateLimitError indicates the request was rate limited (HTTP 429).
+// RateLimitError indicates the request was rate limited (HTTP 429), including
+// both plain rate limiting and quota-exceeded responses — both carry a
+// Retry-After header the caller should honor.
 type RateLimitError struct {
 	EuroMailError
 	RetryAfter int // seconds until retry is allowed, 0 if unknown
@@ -64,28 +81,57 @@ func IsNotFoundError(err error) bool {
 	return ok
 }
 
+// apiErrorBody mirrors the shape of an EuroMail API error response:
+//
+//	{"error": {"type": "...", "code": "...", "message": "...", "docs_url": "..."}}
+//
+// A flat (non-nested) body is also accepted as a fallback for forward/backward
+// compatibility with older error shapes.
+type apiErrorBody struct {
+	Error *struct {
+		Type    string `json:"type"`
+		Code    string `json:"code"`
+		Message string `json:"message"`
+		DocsURL string `json:"docs_url"`
+	} `json:"error"`
+	Code    string `json:"code"`
+	Type    string `json:"type"`
+	Message string `json:"message"`
+	DocsURL string `json:"docs_url"`
+}
+
 func errorFromResponse(resp *http.Response) error {
 	body, _ := io.ReadAll(resp.Body)
 
-	var apiErr struct {
-		Code    string `json:"code"`
-		Message string `json:"message"`
+	var parsed apiErrorBody
+	_ = json.Unmarshal(body, &parsed)
+
+	code, errType, message, docsURL := parsed.Code, parsed.Type, parsed.Message, parsed.DocsURL
+	if parsed.Error != nil {
+		code, errType, message, docsURL = parsed.Error.Code, parsed.Error.Type, parsed.Error.Message, parsed.Error.DocsURL
 	}
-	if err := json.Unmarshal(body, &apiErr); err != nil {
-		apiErr.Code = "unknown"
-		apiErr.Message = http.StatusText(resp.StatusCode)
+	if code == "" {
+		code = "unknown"
 	}
-	if apiErr.Code == "" {
-		apiErr.Code = "unknown"
-	}
-	if apiErr.Message == "" {
-		apiErr.Message = http.StatusText(resp.StatusCode)
+	if message == "" {
+		message = http.StatusText(resp.StatusCode)
 	}
 
 	base := EuroMailError{
-		Status:  resp.StatusCode,
-		Code:    apiErr.Code,
-		Message: apiErr.Message,
+		Status:    resp.StatusCode,
+		Code:      code,
+		Type:      errType,
+		Message:   message,
+		DocsURL:   docsURL,
+		RequestID: resp.Header.Get("X-Request-Id"),
+	}
+
+	// Validation failures are identified by code/type, not status: the API
+	// returns them as both 400 (AppError::Validation, e.g. a bad send_at) and
+	// 422 (ApiError::UnprocessableEntity). Checking status alone silently
+	// downgrades 400 validation failures to a bare EuroMailError.
+	if code == "VALIDATION_ERROR" || errType == "validation_error" {
+		return &ValidationError{EuroMailError: base}
 	}
 
 	switch resp.StatusCode {

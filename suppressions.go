@@ -49,3 +49,22 @@ func (c *Client) ListSuppressions(ctx context.Context, params *ListParams) ([]Su
 	}
 	return result.Data, &result.Pagination, nil
 }
+
+// ImportSuppressions bulk-adds up to 10,000 email addresses to the
+// suppression list in a single request. Invalid addresses are skipped rather
+// than failing the whole request; check ImportSuppressionsResult.InvalidAddresses
+// to see which ones were rejected.
+func (c *Client) ImportSuppressions(ctx context.Context, params ImportSuppressionsParams) (*ImportSuppressionsResult, error) {
+	wrapper, err := doJSON[dataResponse[ImportSuppressionsResult]](c, ctx, http.MethodPost, "/v1/suppressions/import", params)
+	if err != nil {
+		return nil, err
+	}
+	return &wrapper.Data, nil
+}
+
+// ExportSuppressions downloads the account's full suppression list as CSV
+// (columns: email_address, reason, created_at). Large lists are streamed by
+// the server, so this may take a while for accounts with a long history.
+func (c *Client) ExportSuppressions(ctx context.Context) (string, error) {
+	return doRawText(c, ctx, http.MethodGet, "/v1/suppressions/export")
+}

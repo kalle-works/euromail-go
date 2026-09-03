@@ -6,8 +6,10 @@ import (
 	"net/url"
 )
 
-// SendEmail sends a single email.
+// SendEmail sends a single email. If params.Transactional is nil, it defaults
+// to true (see SendEmailParams.Transactional).
 func (c *Client) SendEmail(ctx context.Context, params SendEmailParams) (*SendEmailResponse, error) {
+	applyTransactionalDefault(&params)
 	wrapper, err := doJSON[dataResponse[SendEmailResponse]](c, ctx, http.MethodPost, "/v1/emails", params)
 	if err != nil {
 		return nil, err
@@ -15,13 +17,26 @@ func (c *Client) SendEmail(ctx context.Context, params SendEmailParams) (*SendEm
 	return &wrapper.Data, nil
 }
 
-// SendBatch sends a batch of emails.
+// SendBatch sends a batch of emails. Each email's Transactional field
+// defaults to true when left nil, same as SendEmail.
 func (c *Client) SendBatch(ctx context.Context, params SendBatchParams) (*SendBatchResponse, error) {
+	for i := range params.Emails {
+		applyTransactionalDefault(&params.Emails[i])
+	}
 	result, err := doJSON[SendBatchResponse](c, ctx, http.MethodPost, "/v1/emails/batch", params)
 	if err != nil {
 		return nil, err
 	}
 	return &result, nil
+}
+
+// applyTransactionalDefault sets Transactional to true when the caller left
+// it unset, so transactional mail keeps its List-Unsubscribe headers omitted
+// by default without every caller having to set the field explicitly.
+func applyTransactionalDefault(params *SendEmailParams) {
+	if params.Transactional == nil {
+		params.Transactional = Bool(true)
+	}
 }
 
 // GetEmail retrieves a single email by ID, including its delivery events.

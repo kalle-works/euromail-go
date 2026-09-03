@@ -86,6 +86,23 @@ type SendEmailParams struct {
 	Metadata       map[string]string      `json:"metadata,omitempty"`
 	IdempotencyKey *string                `json:"idempotency_key,omitempty"`
 	Attachments    []Attachment           `json:"attachments,omitempty"`
+	// SendAt schedules delivery for a future time. Must be an RFC 3339 UTC
+	// timestamp (e.g. "2026-03-22T09:00:00Z"), in the future, and at most 30
+	// days out; the server validates the range.
+	SendAt *string `json:"send_at,omitempty"`
+	// Stream is the message stream slug this email is sent through. Omit to
+	// use the account default ("transactional").
+	Stream *string `json:"stream,omitempty"`
+	// Tracking overrides the account's default open/click tracking for this
+	// email. Omit to use the account default.
+	Tracking *bool `json:"tracking,omitempty"`
+	// Transactional marks this as a transactional email (receipt, password
+	// reset, notification) rather than marketing/newsletter mail. When true,
+	// List-Unsubscribe headers are omitted so the message is more likely to
+	// land in Gmail Primary. SendEmail and SendBatch default this to true
+	// when left nil; set it to false explicitly for marketing sends that
+	// need one-click unsubscribe.
+	Transactional *bool `json:"transactional,omitempty"`
 }
 
 // SendEmailResponse is returned after successfully sending an email.
@@ -299,6 +316,26 @@ type Suppression struct {
 	Reason        string  `json:"reason"`
 	SourceEmailID *string `json:"source_email_id"`
 	CreatedAt     string  `json:"created_at"`
+}
+
+// ImportSuppressionsParams are the parameters for bulk-importing suppressions.
+type ImportSuppressionsParams struct {
+	// Emails is the list of addresses to suppress. Must be non-empty and at
+	// most 10,000 addresses; the server rejects anything larger.
+	Emails []string `json:"emails"`
+	// Reason for suppression. Defaults to "import" when omitted.
+	Reason *string `json:"reason,omitempty"`
+}
+
+// ImportSuppressionsResult is returned after a bulk suppression import.
+type ImportSuppressionsResult struct {
+	// Inserted is the number of addresses newly added to the suppression list.
+	Inserted int `json:"inserted"`
+	// TotalRequested is the number of addresses in the request, valid or not.
+	TotalRequested int `json:"total_requested"`
+	// InvalidAddresses lists the requested addresses that failed email
+	// validation and were skipped.
+	InvalidAddresses []string `json:"invalid_addresses"`
 }
 
 // ---- Contact List ----
@@ -646,6 +683,16 @@ type BroadcastParams struct {
 	Headers       map[string]string      `json:"headers,omitempty"`
 	Tags          []string               `json:"tags,omitempty"`
 	SendAt        *string                `json:"send_at,omitempty"`
+	// Tracking overrides the account's default open/click tracking for this
+	// broadcast. Omit to use the account default.
+	Tracking *bool `json:"tracking,omitempty"`
+	// Transactional marks this broadcast as transactional rather than
+	// marketing mail. Unlike SendEmail, SendBroadcast does not default this
+	// to true: broadcasts go to a contact list and are typically marketing
+	// email that needs List-Unsubscribe headers. Omit to use the account
+	// default, or set true only for operational bulk sends (e.g. a
+	// migration notice) where unsubscribe headers are inappropriate.
+	Transactional *bool `json:"transactional,omitempty"`
 }
 
 // BroadcastResponse is returned after a broadcast send.
