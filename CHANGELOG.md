@@ -29,6 +29,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `WebhookFilters`, `AutoResponderEnabled`, and `AutoResponderRules`.
 - README rewritten with native SDK examples in place of the raw `net/http`
   snippet.
+- `SendAt`, `Stream`, `Tracking`, and `Transactional` fields on
+  `SendEmailParams` (and `Tracking`/`Transactional` on `BroadcastParams`).
+  `Transactional` defaults to `true` when left `nil` on `SendEmail`/`SendBatch`
+  (unlike `SendBroadcast`, which defaults to the account setting — a broadcast
+  targets a contact list and is typically marketing mail).
+- `VerifyWebhookSignature` verifies the `X-Euromail-Signature` header on a
+  webhook delivery (`t=<unix_ts>,v1=<hex_hmac>` over `"<ts>.<raw_body>"`,
+  constant-time compared, 5-minute default tolerance) and returns the
+  timestamp it was signed at. Sentinel errors
+  (`ErrWebhookSignatureMissingTimestamp`, `ErrWebhookSignatureMissingSignature`,
+  `ErrWebhookSignatureExpired`, `ErrWebhookSignatureInvalid`) let a caller
+  distinguish failure reasons with `errors.Is`.
+- `ImportSuppressions` / `ExportSuppressions`: bulk-import up to 10,000
+  addresses in one call and export the full suppression list as CSV. New
+  `ImportSuppressionsParams` / `ImportSuppressionsResult` types.
+
+### Changed
+
+- `EuroMailError` gained `Type` and `DocsURL` fields (from the API's error
+  envelope) and a `RequestID` (from the `X-Request-Id` response header).
+  Validation failures are now classified by error code/type rather than
+  HTTP status alone, since the API can return a validation failure as either
+  `400` or `422` depending on the endpoint.
 
 ## [0.1.0] - 2026-04-13
 
