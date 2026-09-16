@@ -10,7 +10,7 @@ Official Go SDK for the [EuroMail](https://euromail.dev) transactional email ser
 go get github.com/kalle-works/euromail-go
 ```
 
-Requires Go 1.21+. Zero external dependencies (stdlib only).
+Requires Go 1.24+. Zero external dependencies (stdlib only).
 
 ## Quick Start
 
@@ -478,7 +478,7 @@ See the [Agent Mailboxes guide](https://euromail.dev/docs/guides/agent-mailboxes
 
 ## Requirements
 
-- Go 1.21+
+- Go 1.24+
 - No external dependencies
 
 ## License
