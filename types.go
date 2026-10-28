@@ -217,6 +217,7 @@ type Domain struct {
 	InboundEnabled           bool                 `json:"inbound_enabled"`
 	MXVerifiedAt             *string              `json:"mx_verified_at"`
 	DnsRecords               map[string]DnsRecord `json:"dns_records"`
+	DetectedProvider         *string              `json:"detected_provider"` // DNS host, e.g. "cloudflare"; nil before the first check
 	VerifiedAt               *string              `json:"verified_at"`
 	TrackingDomain           *string              `json:"tracking_domain"`
 	TrackingDomainVerified   bool                 `json:"tracking_domain_verified"`
