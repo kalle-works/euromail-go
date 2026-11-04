@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-04
+
+### Changed
+
+- `DomainAnalytics.OpenRate` and `ClickRate` are now `*FlexFloat64` and can be `nil`. The API returns `null` when no delivered mail to that domain had open or click tracking, because 0% would say nobody opened it. This changes the field's type, so code that reads these fields needs updating.
+
+### Added
+
+- `DomainAnalytics.OpensTracked` and `ClicksTracked` show how many delivered emails each rate is out of.
+
 ## [0.4.0] - 2026-10-28
 
 ### Added
