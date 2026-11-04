@@ -472,12 +472,18 @@ type TimeseriesResponse struct {
 
 // DomainAnalytics holds analytics data for a single domain.
 type DomainAnalytics struct {
-	Domain    string      `json:"domain"`
-	Sent      int         `json:"sent"`
-	Delivered int         `json:"delivered"`
-	Bounced   int         `json:"bounced"`
-	OpenRate  FlexFloat64 `json:"open_rate"`
-	ClickRate FlexFloat64 `json:"click_rate"`
+	Domain    string `json:"domain"`
+	Sent      int    `json:"sent"`
+	Delivered int    `json:"delivered"`
+	Bounced   int    `json:"bounced"`
+	// OpensTracked is how many delivered emails to this domain carried an open pixel.
+	OpensTracked int `json:"opens_tracked"`
+	// ClicksTracked is how many delivered emails to this domain had tracked links.
+	ClicksTracked int `json:"clicks_tracked"`
+	// OpenRate is nil when no delivered email to this domain had open tracking.
+	OpenRate *FlexFloat64 `json:"open_rate"`
+	// ClickRate is nil when no delivered email to this domain had click tracking.
+	ClickRate *FlexFloat64 `json:"click_rate"`
 }
 
 // DomainAnalyticsResponse is the response from the analytics domains endpoint.
