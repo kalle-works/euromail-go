@@ -172,6 +172,11 @@ if spf, ok := verification.Checks["spf"]; ok {
     fmt.Printf("SPF verified: %v\n", spf.Verified)
 }
 
+// Never send this domain's mail in plain text (needs the domains:manage scope)
+requireTLS := true
+domain, err = client.UpdateDomain(ctx, domain.ID, euromail.UpdateDomainParams{RequireTLS: &requireTLS})
+fmt.Printf("Require TLS: %v\n", domain.RequireTLS)
+
 // List all domains
 domains, pagination, err := client.ListDomains(ctx, nil)
 ```
@@ -417,6 +422,7 @@ See the [Agent Mailboxes guide](https://euromail.dev/docs/guides/agent-mailboxes
 | | `ListTemplates(ctx, params)` | List templates with pagination |
 | **Domains** | `AddDomain(ctx, domain)` | Register a sending domain |
 | | `GetDomain(ctx, id)` | Get domain details and DNS records |
+| | `UpdateDomain(ctx, id, params)` | Change domain settings such as `RequireTLS` |
 | | `VerifyDomain(ctx, id)` | Trigger DNS verification |
 | | `DeleteDomain(ctx, id)` | Remove a domain |
 | | `ListDomains(ctx, params)` | List domains with pagination |
