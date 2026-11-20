@@ -218,12 +218,19 @@ type Domain struct {
 	MXVerifiedAt             *string              `json:"mx_verified_at"`
 	DnsRecords               map[string]DnsRecord `json:"dns_records"`
 	DetectedProvider         *string              `json:"detected_provider"` // DNS host, e.g. "cloudflare"; nil before the first check
+	RequireTLS               bool                 `json:"require_tls"`       // never send this domain's mail in plain text; false when the server omits it
 	VerifiedAt               *string              `json:"verified_at"`
 	TrackingDomain           *string              `json:"tracking_domain"`
 	TrackingDomainVerified   bool                 `json:"tracking_domain_verified"`
 	TrackingDomainVerifiedAt *string              `json:"tracking_domain_verified_at"`
 	CreatedAt                string               `json:"created_at"`
 	UpdatedAt                string               `json:"updated_at"`
+}
+
+// UpdateDomainParams are the parameters for updating a domain. Only fields that
+// are set are sent; an empty value changes nothing.
+type UpdateDomainParams struct {
+	RequireTLS *bool `json:"require_tls,omitempty"`
 }
 
 // VerificationCheck holds the result of a single DNS verification check.

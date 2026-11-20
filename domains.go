@@ -24,6 +24,16 @@ func (c *Client) GetDomain(ctx context.Context, domainID string) (*Domain, error
 	return &wrapper.Data, nil
 }
 
+// UpdateDomain changes a domain's settings. Only the fields set in params change.
+// Requires the domains:manage scope.
+func (c *Client) UpdateDomain(ctx context.Context, domainID string, params UpdateDomainParams) (*Domain, error) {
+	wrapper, err := doJSON[dataResponse[Domain]](c, ctx, http.MethodPatch, "/v1/domains/"+url.PathEscape(domainID), params)
+	if err != nil {
+		return nil, err
+	}
+	return &wrapper.Data, nil
+}
+
 // VerifyDomain triggers DNS verification for a domain.
 func (c *Client) VerifyDomain(ctx context.Context, domainID string) (*DomainVerificationResult, error) {
 	wrapper, err := doJSON[dataResponse[DomainVerificationResult]](c, ctx, http.MethodPost, "/v1/domains/"+url.PathEscape(domainID)+"/verify", struct{}{})
